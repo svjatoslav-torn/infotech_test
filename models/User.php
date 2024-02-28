@@ -1,104 +1,123 @@
 <?php
-
 namespace app\models;
 
-class User extends \yii\base\BaseObject implements \yii\web\IdentityInterface
+use yii\db\ActiveRecord;
+use yii\web\IdentityInterface;
+use Yii;
+
+/**
+ * @property string $id
+ * @property string $name
+ * @property string $email
+ * @property string $password
+ * @property string $token
+ * @property string $token_expire
+ */
+class User extends ActiveRecord implements IdentityInterface
 {
-    public $id;
-    public $username;
-    public $password;
-    public $authKey;
-    public $accessToken;
-
-    private static $users = [
-        '100' => [
-            'id' => '100',
-            'username' => 'admin',
-            'password' => 'admin',
-            'authKey' => 'test100key',
-            'accessToken' => '100-token',
-        ],
-        '101' => [
-            'id' => '101',
-            'username' => 'demo',
-            'password' => 'demo',
-            'authKey' => 'test101key',
-            'accessToken' => '101-token',
-        ],
-    ];
-
+    public const DEFAULT_EXPIRE_AUTH_TOKEN = 60 * 5;
 
     /**
-     * {@inheritdoc}
+     * @return string
+     */
+    public static function tableName(): string
+    {
+        return 'users';
+    }
+
+    public function rules(): array
+    {
+        return [
+            [['name', 'email', 'password'], 'required'],
+            ['name', 'string', 'max' => 120],
+            ['email', 'email'],
+            ['email', 'unique', 'message' => 'Пользователь с таким Email уже зарегистрирован'],
+            [['token'], 'safe'],
+            ['password', 'string'],
+        ];
+    }
+
+    public function __construct(array $attributes = [])
+    {
+        if (!empty($attributes)) {
+            $attributes['password'] = $this->generateHashOfPassword($attributes['password'] ?? '');
+            $this->setAttributes($attributes, false);
+        }
+    }
+
+    /**
+     *  Получение юзера по id
      */
     public static function findIdentity($id)
     {
-        return isset(self::$users[$id]) ? new static(self::$users[$id]) : null;
+        return static::findOne(['id' => $id]);
     }
 
     /**
-     * {@inheritdoc}
+     *  Ауф по токену, с помощью BearerAuth
+     *
+     * @param string $token
+     * @param string|null $type
+     *
+     * @return Token
      */
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        foreach (self::$users as $user) {
-            if ($user['accessToken'] === $token) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        return static::find()
+            ->where(['token' => $token])
+            ->andWhere(['>', 'token_expire', time()])
+            ->one();
     }
 
     /**
-     * Finds user by username
+     * Finds user by email
      *
-     * @param string $username
+     * @param string $email
      * @return static|null
      */
-    public static function findByUsername($username)
+    public static function findByemail($email)
     {
-        foreach (self::$users as $user) {
-            if (strcasecmp($user['username'], $username) === 0) {
-                return new static($user);
-            }
-        }
-
-        return null;
+        return static::findOne(['email' => $email]);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getId()
     {
         return $this->id;
     }
 
-    /**
-     * {@inheritdoc}
-     */
     public function getAuthKey()
     {
-        return $this->authKey;
+        return $this->token;
+    }
+
+    public function validateAuthKey($authKey)
+    {
+        return $this->token === $authKey;
     }
 
     /**
-     * {@inheritdoc}
+     * Создаем хеш пароля
+     * @param string $password
+     * @return string
+     * @throws \yii\base\Exception
      */
-    public function validateAuthKey($authKey)
+    public function generateHashOfPassword(string $password): string
     {
-        return $this->authKey === $authKey;
+        return $this->password = Yii::$app->getSecurity()->generatePasswordHash($password);
+    }
+
+    public function generateAuthToken()
+    {
+        $this->token = Yii::$app->security->generateRandomString();
+        $this->token_expire = time() + Yii::$app->params['defaultExpireAuthToken'] ?? self::DEFAULT_EXPIRE_AUTH_TOKEN;
+        $this->save();
     }
 
     /**
      * Validates password
-     *
-     * @param string $password password to validate
-     * @return bool if password provided is valid for current user
      */
     public function validatePassword($password)
     {
-        return $this->password === $password;
+        return Yii::$app->getSecurity()->validatePassword($password, $this->password);
     }
 }

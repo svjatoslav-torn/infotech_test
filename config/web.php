@@ -1,5 +1,7 @@
 <?php
 
+use yii\web\JsonParser;
+
 $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
 
@@ -13,8 +15,19 @@ $config = [
     ],
     'components' => [
         'request' => [
-            // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
+            'parsers' => [
+                'application/json' => JsonParser::class,
+            ],
             'cookieValidationKey' => 'wAJclY2_y4cbM-JRLeycon5jd3pOew6E',
+        ],
+        'response' => [
+            'formatters' => [
+                \yii\web\Response::FORMAT_JSON => [
+                    'class' => 'yii\web\JsonResponseFormatter',
+                    'prettyPrint' => YII_DEBUG, // use "pretty" output in debug mode
+                    'encodeOptions' => JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+                ],
+            ],
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -42,14 +55,18 @@ $config = [
             ],
         ],
         'db' => $db,
-        /*
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
+                'GET api/v1/reports/topAuthors/<year:\d+>' => 'api/v1/reports/top-authors',
+                'POST api/v1/auth/signup' => 'api/v1/auth/signup',
+                'POST api/v1/auth/signin' => 'api/v1/auth/signin',
+                ['class' => 'yii\rest\UrlRule', 'controller' => 'api/v1/authors'],
+                ['class' => 'yii\rest\UrlRule', 'controller' => 'api/v1/books'],
+                'POST api/v1/subscriptions' => 'api/v1/subscriptions/create',
             ],
         ],
-        */
     ],
     'params' => $params,
 ];

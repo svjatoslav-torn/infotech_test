@@ -58,8 +58,6 @@ class m240227_172223_1_0_0_0 extends Migration
             'id_author',
             'authors',
             'id',
-            'CASCADE',
-            'CASCADE'
         );
 
         $this->createTable('subscriptions', [
@@ -75,9 +73,10 @@ class m240227_172223_1_0_0_0 extends Migration
             'id_author',
             'authors',
             'id',
-            'CASCADE',
-            'CASCADE'
         );
+
+        $this->addColumn('users', 'token', 'varchar(32)');
+        $this->addColumn('users', 'token_expire', 'int(11)');
     }
 
     /**
