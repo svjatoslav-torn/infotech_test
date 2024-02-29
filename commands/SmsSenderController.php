@@ -57,7 +57,6 @@ class SmsSenderController extends Controller
      */
     protected function send(string $phone, string $message)
     {
-        var_dump($message);die;
         $data = http_build_query([
             'send' => $message,
             'to' => $phone,
